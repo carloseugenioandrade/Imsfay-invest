@@ -10,12 +10,17 @@ class Settings(BaseSettings):
     app_host: str = "0.0.0.0"
     app_port: int = 8000
 
-    database_url: str = "postgresql+psycopg://imsfay:imsfay@localhost:5432/imsfay_invest"
+    # Padrão de desenvolvimento: SQLite local (zero configuração).
+    # Em produção/Docker, defina DATABASE_URL para o Postgres no .env.
+    database_url: str = "sqlite:///./imsfay_dev.db"
     redis_url: str = "redis://localhost:6379/0"
 
     brapi_token: str = ""
 
-    cors_origins: str = "http://localhost:5173"
+    # Liga os cronjobs (APScheduler). Mantenha False em dev com --reload.
+    enable_scheduler: bool = False
+
+    cors_origins: str = "http://localhost:5173,http://localhost:5174"
 
     @property
     def cors_origin_list(self) -> list[str]:

@@ -1,11 +1,56 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500&display=swap");
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  color-scheme: light;
+  color-scheme: dark;
+}
+
+html,
+body,
+#root {
+  height: 100%;
 }
 
 body {
-  @apply bg-slate-50 text-slate-800 antialiased;
+  @apply bg-ink-950 text-slate-200 antialiased font-sans;
+  background-image:
+    radial-gradient(circle at 15% -10%, rgba(45, 212, 191, 0.12), transparent 45%),
+    radial-gradient(circle at 95% 0%, rgba(139, 92, 246, 0.12), transparent 40%),
+    linear-gradient(180deg, #05060a 0%, #080a11 100%);
+  background-attachment: fixed;
+}
+
+@layer components {
+  .glass {
+    @apply rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl shadow-card;
+  }
+  .glass-hover {
+    @apply transition-all duration-300 hover:border-brand/30 hover:bg-white/[0.05];
+  }
+  .text-gradient {
+    @apply bg-gradient-to-r from-brand-glow via-brand to-accent-cyan bg-clip-text text-transparent;
+  }
+  .grid-bg {
+    background-size: 40px 40px;
+    @apply bg-grid-faint;
+  }
+}
+
+/* Scrollbar futurista */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.2);
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(45, 212, 191, 0.4);
 }

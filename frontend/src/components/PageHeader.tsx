@@ -1,13 +1,17 @@
 interface PageHeaderProps {
   title: string;
   description: string;
+  eyebrow?: string;
 }
 
-export default function PageHeader({ title, description }: PageHeaderProps) {
+export default function PageHeader({ title, description, eyebrow }: PageHeaderProps) {
   return (
-    <header className="mb-6">
-      <h1 className="text-2xl font-bold text-slate-900">{title}</h1>
-      <p className="text-slate-500 mt-1">{description}</p>
+    <header className="mb-8 animate-fade-up">
+      {eyebrow && (
+        <p className="mb-1 text-xs font-semibold uppercase tracking-[0.2em] text-brand">{eyebrow}</p>
+      )}
+      <h1 className="font-display text-3xl font-bold text-white">{title}</h1>
+      <p className="mt-2 max-w-2xl text-sm text-slate-400">{description}</p>
     </header>
   );
 }

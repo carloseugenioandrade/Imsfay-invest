@@ -18,61 +18,71 @@ entrega algo funcional e testável. Marque os itens conforme avançar.
 
 ---
 
-## Fase 1 — Persistência e CRUD básico
+## Fase 1 — Persistência e CRUD básico (CONCLUÍDA)
 **Objetivo:** banco vivo com dados manuais.
-- [ ] Configurar **Alembic** (migrations) e gerar o schema inicial.
-- [ ] Schemas Pydantic (entrada/saída) para `Ativo`, `Transacao`, `Provento`.
-- [ ] Implementar CRUD real em `ativos`, `transacoes`, `proventos` (substituir stubs).
-- [ ] Seed de dados de exemplo (alguns tickers + transações fictícias).
-- [ ] Testes de API (pytest + httpx) para os CRUDs.
+- [x] Banco de desenvolvimento **SQLite** (zero config); Postgres via `.env`/Docker.
+- [x] Criação de tabelas no startup (`lifespan` + `create_all`, resiliente).
+- [x] Schemas Pydantic (entrada/saída) para `Ativo`, `Transacao`, `Provento`.
+- [x] CRUD real em `ativos`, `transacoes`, `proventos` (substituiu stubs).
+- [x] Ranking de Valuation (Graham) lendo indicadores + cotação do banco.
+- [x] Seed de dados de exemplo re-executável (`backend/seed.py`).
+- [x] **Alembic** configurado (`alembic/`) + migration inicial autogerada.
+- [x] Testes de API (pytest + TestClient): 9 testes verdes.
 
-## Fase 2 — Ingestão de dados de mercado
+## Fase 2 — Ingestão de dados de mercado (CONCLUÍDA)
 **Objetivo:** preencher cotações e fundamentos automaticamente.
-- [ ] `integrations/brapi.py`: cotações e dividendos da B3 (token via `.env`).
-- [ ] `integrations/yahoo.py`: fundamentos (LPA, VPA) e ativos internacionais.
-- [ ] `integrations/bcb.py`: séries CDI (12), IPCA (433), Selic (11).
-- [ ] Persistir em `cotacoes_historicas` e `indicadores_fundamentalistas`.
-- [ ] Tratamento de erros/timeout e cache para não estourar limites de API.
+- [x] `integrations/brapi.py`: cotações e dividendos da B3 (token via `.env`).
+- [x] `integrations/yahoo.py`: fundamentos (LPA, VPA, P/L, ROE, DY) + histórico (`.SA`).
+- [x] `integrations/bcb.py`: séries CDI (12), IPCA (433), Selic (11) — validado.
+- [x] `services/market.py`: persiste em `cotacoes_historicas` e `indicadores_fundamentalistas`.
+- [x] Rotas `/market/sync/*` e `/market/indicadores-macro`.
+- [x] Botão "Sincronizar mercado" no Dashboard.
+- [x] Tratamento de erros/timeout (falha de um ticker não derruba os demais).
+- [x] Agendamento (APScheduler) para sync periódico — ver Fase 8.
 
-## Fase 3 — Valuation (Graham & Bazin)
+## Fase 3 — Valuation (Graham & Bazin) (CONCLUÍDA)
 **Objetivo:** rankings de margem de segurança.
-- [ ] Ligar `services/valuation.py` aos dados de `indicadores_fundamentalistas`.
-- [ ] Rota `/valuation/ranking`: Upside (Graham) e abaixo-do-teto (Bazin).
-- [ ] Frontend `Valuation`: calculadoras + tabela de ranking ordenável.
+- [x] `services/valuation.py` ligado aos `indicadores_fundamentalistas`.
+- [x] Rota `/valuation/ranking`: Upside (Graham) + Preço Teto/abaixo-do-teto (Bazin).
+- [x] Frontend `Valuation`: tabela de ranking + calculadoras Graham e Bazin.
 
-## Fase 4 — Gerenciador de carteira & rentabilidade
+## Fase 4 — Gerenciador de carteira & rentabilidade (CONCLUÍDA)
 **Objetivo:** o "coração" do cockpit.
-- [ ] Preço médio ponderado por transação de COMPRA.
-- [ ] TWR (Time-Weighted Return) com pandas; comparação vs Ibovespa e CDI.
-- [ ] Consolidação por classe de ativo, setor e moeda (agregações SQL).
-- [ ] Frontend `Dashboard`/`Carteira`: cards, gráfico de linha e pizza (Recharts).
+- [x] Preço médio ponderado por transação de COMPRA (trata VENDA).
+- [x] Consolidação por classe de ativo e setor.
+- [x] Evolução patrimonial (série temporal patrimônio vs investido).
+- [x] Benchmark **CDI** sobreposto na curva (aportes corrigidos pelo CDI/BCB).
+- [x] Frontend `Dashboard`/`Carteira`: cards, área de evolução e pizzas (Recharts).
+- [ ] TWR (Time-Weighted Return) formal vs Ibovespa (refinamento futuro).
 
-## Fase 5 — Importação de extratos B3/corretora
+## Fase 5 — Importação de extratos B3/corretora (CONCLUÍDA)
 **Objetivo:** acabar com a digitação manual.
-- [ ] `integrations/importador_b3.py`: parser XLSX (pandas/openpyxl).
-- [ ] Parser PDF (extrato de movimentação).
-- [ ] Rota `/transacoes/importar` com validação e deduplicação.
-- [ ] Frontend: upload com preview antes de gravar.
+- [x] `integrations/importador_b3.py`: parser XLSX (pandas/openpyxl) tolerante a layout.
+- [x] Rota `/transacoes/importar`: cria ativos ausentes e deduplica transações.
+- [x] Frontend `Carteira`: upload de extrato com feedback (inseridas/duplicadas).
+- [ ] Parser PDF (extrato de movimentação) — futuro.
 
-## Fase 6 — Dividendos Inteligentes (previsão)
+## Fase 6 — Dividendos Inteligentes (previsão) (CONCLUÍDA)
 **Objetivo:** agenda preditiva.
-- [ ] `services/dividendos_ia.py`: análise de `data_com` (5–7 anos) com scikit-learn.
-- [ ] Distribuição probabilística por mês; rota `/proventos/agenda-preditiva`.
-- [ ] Yield on Cost e evolução de proventos (mês a mês / ano a ano).
-- [ ] Frontend `Dividendos`: gráfico de evolução + agenda preditiva.
+- [x] `services/dividendos_ia.py`: distribuição probabilística por mês (sazonalidade).
+- [x] Rota `/proventos/agenda-preditiva` (carteira + por ativo).
+- [x] Yield on Cost e evolução de proventos (`/proventos/resumo`).
+- [x] Frontend `Dividendos`: gráfico de evolução + heatmap da agenda preditiva.
 
-## Fase 7 — Módulo Fiscal (Isentômetro & IR)
+## Fase 7 — Módulo Fiscal (Isentômetro & IR) (CONCLUÍDA)
 **Objetivo:** apoio às obrigações com o Fisco.
-- [ ] Isentômetro: soma de VENDAS do mês vs teto (R$ 20.000 ações) — verde/amarelo/vermelho.
-- [ ] Gerador de relatório IR: posição 31/12 (Bens e Direitos) com CNPJ e preço médio.
-- [ ] Cálculo/emissão de DARF (ganho de capital acima da isenção).
-- [ ] Frontend `Fiscal`: barra de progresso + exportação do relatório.
+- [x] Isentômetro: VENDAS do mês vs teto (R$ 20.000) — status verde/amarelo/vermelho.
+- [x] Lucro realizado + imposto estimado (15% swing trade) quando acima do teto.
+- [x] Relatório IR: posição 31/12 (Bens e Direitos) com preço médio e discriminação.
+- [x] Frontend `Fiscal`: barra de progresso + cards + tabela de Bens e Direitos.
+- [ ] Emissão de DARF formal — futuro.
 
-## Fase 8 — Agendamentos (cronjobs)
+## Fase 8 — Agendamentos (cronjobs) (CONCLUÍDA)
 **Objetivo:** automação em segundo plano.
-- [ ] `Task_Atualizar_Cotacoes`: seg–sex 18h (APScheduler ou Celery beat + Redis).
-- [ ] `Task_Atualizar_Fundamentalista`: domingos (recalcular rankings).
-- [ ] Logs e monitoramento das execuções.
+- [x] `atualizar_cotacoes`: seg–sex 18h (APScheduler, fuso America/Sao_Paulo).
+- [x] `atualizar_fundamentalista`: domingos 08h (recalcular fundamentos).
+- [x] Liga/desliga via `ENABLE_SCHEDULER` no `.env` (off em dev com --reload).
+- [x] Logs das execuções via logger do uvicorn.
 
 ## Fase 9 — Qualidade e produção
 - [ ] Autenticação (uso pessoal — login simples / token).
@@ -92,6 +102,9 @@ entrega algo funcional e testável. Marque os itens conforme avançar.
   - Bazin: `preco_teto = dividendos_medios_5_anos / 0.06`.
   - Upside: `((preco_referencia / preco_atual) - 1) * 100`.
 
-## Próximo passo sugerido
-Iniciar a **Fase 1** (Alembic + CRUD real + seed), pois destrava todas as
-demais fases. Posso assumir essa fase quando você quiser.
+## Status atual
+Fases 1–8 **concluídas**. Pendências opcionais (Fase 9 / refinamentos):
+- Autenticação pessoal (login/token).
+- TWR formal e benchmark Ibovespa.
+- Parser de PDF e emissão de DARF.
+- TimescaleDB para séries; CI; deploy de produção.
