@@ -144,13 +144,141 @@ def _parse_pdf_texto(texto: str) -> list[dict]:
     return transacoes
 
 
-def parse_extrato_pdf(conteudo: bytes) -> list[dict]:
-    """Lê um PDF de negociação (relatório B3 ou nota de corretagem).
+_MESES = {
+    "janeiro": 1, "fevereiro": 2, "marco": 3, "abril": 4, "maio": 5, "junho": 6,
+    "julho": 7, "agosto": 8, "setembro": 9, "outubro": 10, "novembro": 11, "dezembro": 12,
+}
+_DATA_EXT_RE = re.compile(r"^(\d{1,2})\s+de\s+([a-zç]+)\s+de\s+(\d{4})$")
+_NUM_RE = re.compile(r"^\d{1,3}(?:\.\d{3})+(?:,\d+)?$|^\d+(?:,\d+)?$")
+_MOVIMENTOS = {"venda", "compra", "transferencia"}
 
-    Estratégia: primeiro tenta extrair tabelas estruturadas (mesma lógica do
-    XLSX); se não reconhecer colunas, faz fallback para parsing textual via
-    regex. Requer `pdfplumber`.
-    """
+
+def _parse_data_extenso(texto: str) -> date | None:
+    m = _DATA_EXT_RE.match(_normalizar(texto))
+    if not m:
+        return None
+    dia, mes_nome, ano = m.groups()
+    mes = _MESES.get(mes_nome)
+    return date(int(ano), mes, int(dia)) if mes else None
+
+
+def _cor_marcador(col) -> str | None:
+    """Verde = COMPRA (entrada), vermelho/laranja = VENDA (saída)."""
+    if not isinstance(col, (list, tuple)) or len(col) != 3:
+        return None
+    r, g, b = col
+    if g > 0.4 and r < 0.3:
+        return "COMPRA"
+    if r > 0.6 and g < 0.45:
+        return "VENDA"
+    return None
+
+
+def _classificar_ativo(ticker: str) -> str:
+    t = ticker.upper()
+    if t.startswith("TESOURO"):
+        return "Tesouro"
+    if re.match(r"^[A-Z]{4}11$", t):
+        return "FII"
+    return "Acao"
+
+
+def _clusterizar_linhas(words: list[dict], tol: float = 2.5) -> list[dict]:
+    """Agrupa palavras em linhas pelo topo (tolerância em pontos)."""
+    linhas: list[dict] = []
+    for w in sorted(words, key=lambda x: (x["top"], x["x0"])):
+        if linhas and abs(w["top"] - linhas[-1]["top"]) <= tol:
+            linhas[-1]["words"].append(w)
+        else:
+            linhas.append({"top": w["top"], "words": [w]})
+    return linhas
+
+
+def _parse_pagina_movimentacao(pagina) -> list[dict]:
+    """Parser do 'Extrato de Movimentação' da B3 (data no cabeçalho, colunas
+    posicionais e direção compra/venda pela cor do marcador)."""
+    linhas = _clusterizar_linhas(pagina.extract_words())
+    marcadores = []
+    for c in pagina.curves:
+        tipo = _cor_marcador(c.get("non_stroking_color"))
+        if tipo and c.get("x0", 99) < 60:
+            marcadores.append((c["top"], tipo))
+
+    # Classifica cada linha e localiza inícios de transação.
+    eventos: list[tuple[int, str]] = []
+    cols = {"prod": 100.0, "inst": 230.0}
+    for i, ln in enumerate(linhas):
+        textos = [w["text"] for w in ln["words"]]
+        joined = " ".join(textos)
+        if _parse_data_extenso(joined):
+            eventos.append((i, "data"))
+        elif "Produto" in textos and "Quantidade" in textos:
+            eventos.append((i, "header"))
+        elif textos and _normalizar(textos[0]) in _MOVIMENTOS and ln["words"][0]["x0"] < 110:
+            eventos.append((i, "txn"))
+        elif textos and textos[0].lower().startswith("acesse"):
+            eventos.append((i, "footer"))
+
+    transacoes: list[dict] = []
+    data_atual: date | None = None
+    for idx, (li, tipo_ev) in enumerate(eventos):
+        ln = linhas[li]
+        if tipo_ev == "data":
+            data_atual = _parse_data_extenso(" ".join(w["text"] for w in ln["words"]))
+        elif tipo_ev == "header":
+            for w in ln["words"]:
+                if w["text"] == "Produto":
+                    cols["prod"] = w["x0"]
+                elif w["text"] == "Instituição":
+                    cols["inst"] = w["x0"]
+        elif tipo_ev == "txn":
+            fim = linhas[eventos[idx + 1][0]]["top"] if idx + 1 < len(eventos) else 1e9
+            banda = [w for w in pagina.extract_words() if ln["top"] - 1 <= w["top"] < fim - 1]
+            t = _montar_transacao(banda, cols, data_atual, ln["top"], marcadores, ln["words"])
+            if t:
+                transacoes.append(t)
+    return transacoes
+
+
+def _montar_transacao(banda, cols, data_atual, top, marcadores, words_inicio):
+    if data_atual is None:
+        return None
+    # Produto (ticker) entre as colunas Produto e Instituição.
+    prod = [w for w in banda if cols["prod"] - 6 <= w["x0"] < cols["inst"] - 6]
+    prod.sort(key=lambda w: (w["top"], w["x0"]))
+    ticker = _extrair_ticker(" ".join(w["text"] for w in prod))
+    # Colunas numéricas por faixa de x fixa.
+    qtd = preco = None
+    for w in sorted(banda, key=lambda w: w["x0"]):
+        if not _NUM_RE.match(w["text"]):
+            continue
+        if 395 < w["x0"] < 452 and qtd is None:
+            qtd = _to_float(w["text"])
+        elif 452 <= w["x0"] < 515 and preco is None:
+            preco = _to_float(w["text"])
+    if not ticker or not qtd or preco is None:
+        return None
+    # Direção pela cor do marcador mais próximo; fallback pela palavra.
+    tipo = None
+    melhor = 15.0
+    for mtop, mtipo in marcadores:
+        if abs(mtop - top) < melhor:
+            melhor, tipo = abs(mtop - top), mtipo
+    if tipo is None:
+        tipo = _classificar_tipo(words_inicio[0]["text"])
+    return {
+        "ticker": ticker,
+        "tipo_operacao": tipo,
+        "data_operacao": data_atual,
+        "quantidade": abs(qtd),
+        "preco_unitario": preco,
+        "tipo_ativo": _classificar_ativo(ticker),
+    }
+
+
+def parse_extrato_pdf(conteudo: bytes) -> list[dict]:
+    """Lê um PDF da B3. Tenta o layout 'Extrato de Movimentação'; se não
+    reconhecer, faz fallback para tabelas estruturadas. Requer `pdfplumber`."""
     try:
         import pdfplumber
     except ImportError as exc:  # pragma: no cover - dependência opcional
@@ -159,30 +287,17 @@ def parse_extrato_pdf(conteudo: bytes) -> list[dict]:
         ) from exc
 
     transacoes: list[dict] = []
-    textos: list[str] = []
     with pdfplumber.open(BytesIO(conteudo)) as pdf:
+        for pagina in pdf.pages:
+            transacoes.extend(_parse_pagina_movimentacao(pagina))
+        if transacoes:
+            return transacoes
+        # Fallback: relatório de Negociação em formato de tabela.
         for pagina in pdf.pages:
             for tabela in pagina.extract_tables() or []:
                 if not tabela or len(tabela) < 2:
                     continue
                 cabecalho, *linhas = tabela
                 colunas = [str(c or f"col{i}") for i, c in enumerate(cabecalho)]
-                df = pd.DataFrame(linhas, columns=colunas)
-                transacoes.extend(_processar_dataframe(df))
-            texto = pagina.extract_text() or ""
-            if texto:
-                textos.append(texto)
-
-    # Deduplica resultados das tabelas (mesma transação aparecendo 2x).
-    vistos = {tuple(t.items()) for t in transacoes}
-
-    if not transacoes:
-        transacoes = _parse_pdf_texto("\n".join(textos))
-    else:
-        # Complementa com linhas textuais ainda não capturadas.
-        for t in _parse_pdf_texto("\n".join(textos)):
-            if tuple(t.items()) not in vistos:
-                transacoes.append(t)
-                vistos.add(tuple(t.items()))
-
+                transacoes.extend(_processar_dataframe(pd.DataFrame(linhas, columns=colunas)))
     return transacoes
