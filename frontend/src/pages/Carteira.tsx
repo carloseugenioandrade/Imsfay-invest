@@ -45,8 +45,17 @@ export default function Carteira() {
       setMsg(`Importado: ${d.inseridas} inseridas, ${d.duplicadas} duplicadas, ${d.ativos_criados} ativos criados.`);
       carregar();
     } catch (e: unknown) {
-      const detail = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
-      setErro(detail ?? "Falha ao importar o extrato.");
+      const err = e as { response?: { data?: { detail?: string } }; request?: unknown };
+      const detail = err?.response?.data?.detail;
+      if (detail) {
+        setErro(detail);
+      } else if (err?.request) {
+        setErro(
+          `Não foi possível falar com o servidor (${api.defaults.baseURL}). Verifique se o backend está rodando e se VITE_API_URL aponta para ele.`,
+        );
+      } else {
+        setErro("Falha ao importar o extrato.");
+      }
     } finally {
       setImportando(false);
       if (inputRef.current) inputRef.current.value = "";

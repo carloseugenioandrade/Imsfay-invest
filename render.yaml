@@ -1,0 +1,28 @@
+# Blueprint de deploy do backend Imsfay Invest no Render.
+# No Render: New + -> Blueprint -> selecione este repositorio.
+# Cria um banco Postgres (free) e a API (Docker), ja com DATABASE_URL conectado.
+databases:
+  - name: imsfay-db
+    plan: free
+    databaseName: imsfay_invest
+    user: imsfay
+
+services:
+  - type: web
+    name: imsfay-api
+    runtime: docker
+    plan: free
+    rootDir: backend
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: imsfay-db
+          property: connectionString
+      # Defina no painel do Render com a URL do seu site Vercel.
+      # Ex.: https://imsfay-invest.vercel.app,http://localhost:5173
+      - key: CORS_ORIGINS
+        sync: false
+      - key: ENABLE_SCHEDULER
+        value: "false"
