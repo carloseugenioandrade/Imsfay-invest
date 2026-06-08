@@ -67,12 +67,12 @@ export default function Carteira() {
           className="flex shrink-0 items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-medium text-slate-200 transition-all hover:border-brand/40 hover:bg-brand/10 hover:text-white disabled:opacity-50"
         >
           <Upload size={16} className="text-brand" />
-          {importando ? "Importando..." : "Importar extrato B3"}
+          {importando ? "Importando..." : "Importar extrato B3 (XLSX/PDF)"}
         </button>
         <input
           ref={inputRef}
           type="file"
-          accept=".xlsx,.xls"
+          accept=".xlsx,.xls,.pdf"
           className="hidden"
           onChange={(e) => e.target.files?.[0] && importar(e.target.files[0])}
         />

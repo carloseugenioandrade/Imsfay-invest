@@ -4,7 +4,7 @@ from io import BytesIO
 
 import pandas as pd
 
-from app.integrations.importador_b3 import parse_extrato_xlsx
+from app.integrations.importador_b3 import _parse_pdf_texto, parse_extrato_xlsx
 from app.services.dividendos_ia import prever_meses_provento
 from datetime import date
 
@@ -29,6 +29,24 @@ def test_parse_extrato_negociacao():
     assert linhas[0]["preco_unitario"] == 30.5
     assert linhas[1]["ticker"] == "ITUB4"
     assert linhas[1]["tipo_operacao"] == "VENDA"
+
+
+def test_parse_pdf_texto():
+    texto = (
+        "Negociação de Ativos\n"
+        "10/01/2024 C PETR4 100 30,50\n"
+        "11/01/2024 Venda ITUB4 50 R$ 28,00\n"
+        "linha sem transacao\n"
+    )
+    linhas = _parse_pdf_texto(texto)
+    assert len(linhas) == 2
+    assert linhas[0]["ticker"] == "PETR4"
+    assert linhas[0]["tipo_operacao"] == "COMPRA"
+    assert linhas[0]["quantidade"] == 100
+    assert linhas[0]["preco_unitario"] == 30.5
+    assert linhas[1]["ticker"] == "ITUB4"
+    assert linhas[1]["tipo_operacao"] == "VENDA"
+    assert linhas[1]["preco_unitario"] == 28.0
 
 
 def test_importar_endpoint(client):

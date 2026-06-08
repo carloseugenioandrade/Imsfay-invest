@@ -3,7 +3,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.integrations.importador_b3 import parse_extrato_xlsx
+from app.integrations.importador_b3 import parse_extrato_pdf, parse_extrato_xlsx
 from app.models import Ativo, Transacao
 from app.schemas import TransacaoCreate, TransacaoOut
 
@@ -40,16 +40,26 @@ def remover_transacao(transacao_id: int, db: Session = Depends(get_db)):
 
 @router.post("/importar")
 async def importar_extrato(file: UploadFile, db: Session = Depends(get_db)):
-    """Importa um extrato XLSX da B3/corretora, criando ativos ausentes e
-    deduplicando transações idênticas."""
-    if not file.filename or not file.filename.lower().endswith((".xlsx", ".xls")):
-        raise HTTPException(status_code=400, detail="Envie um arquivo .xlsx da B3.")
+    """Importa um extrato XLSX ou PDF da B3/corretora, criando ativos ausentes
+    e deduplicando transações idênticas."""
+    nome = (file.filename or "").lower()
+    if nome.endswith((".xlsx", ".xls")):
+        formato = "xlsx"
+    elif nome.endswith(".pdf"):
+        formato = "pdf"
+    else:
+        raise HTTPException(status_code=400, detail="Envie um arquivo .xlsx ou .pdf da B3.")
 
     conteudo = await file.read()
     try:
-        linhas = parse_extrato_xlsx(conteudo)
+        if formato == "pdf":
+            linhas = parse_extrato_pdf(conteudo)
+        else:
+            linhas = parse_extrato_xlsx(conteudo)
+    except RuntimeError as exc:  # dependência de PDF ausente
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
     except Exception as exc:  # arquivo inválido/corrompido
-        raise HTTPException(status_code=422, detail=f"Falha ao ler o XLSX: {exc}") from exc
+        raise HTTPException(status_code=422, detail=f"Falha ao ler o {formato.upper()}: {exc}") from exc
 
     if not linhas:
         raise HTTPException(status_code=422, detail="Nenhuma transação reconhecida no arquivo.")

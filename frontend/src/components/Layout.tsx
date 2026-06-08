@@ -1,5 +1,5 @@
 import { NavLink, Outlet } from "react-router-dom";
-import { LayoutDashboard, Wallet, Calculator, Coins, Receipt, TrendingUp, Activity } from "lucide-react";
+import { LayoutDashboard, Wallet, Calculator, Coins, Receipt, TrendingUp, Activity, LineChart } from "lucide-react";
 
 const nav = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard, end: true },
@@ -7,6 +7,7 @@ const nav = [
   { to: "/valuation", label: "Valuation", icon: Calculator },
   { to: "/dividendos", label: "Dividendos", icon: Coins },
   { to: "/fiscal", label: "Fiscal", icon: Receipt },
+  { to: "/juros-compostos", label: "Juros Compostos", icon: LineChart },
 ];
 
 export default function Layout() {

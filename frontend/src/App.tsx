@@ -5,6 +5,7 @@ import Carteira from "./pages/Carteira";
 import Valuation from "./pages/Valuation";
 import Dividendos from "./pages/Dividendos";
 import Fiscal from "./pages/Fiscal";
+import JurosCompostos from "./pages/JurosCompostos";
 
 export default function App() {
   return (
@@ -15,6 +16,7 @@ export default function App() {
         <Route path="valuation" element={<Valuation />} />
         <Route path="dividendos" element={<Dividendos />} />
         <Route path="fiscal" element={<Fiscal />} />
+        <Route path="juros-compostos" element={<JurosCompostos />} />
       </Route>
     </Routes>
   );
