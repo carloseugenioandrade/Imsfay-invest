@@ -10,6 +10,9 @@ class Transacao(Base):
     __tablename__ = "transacoes"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    usuario_id: Mapped[int | None] = mapped_column(
+        ForeignKey("usuarios.id", ondelete="CASCADE"), index=True, nullable=True
+    )
     ativo_id: Mapped[int] = mapped_column(ForeignKey("ativos.id", ondelete="CASCADE"), index=True)
     tipo_operacao: Mapped[str] = mapped_column(String(10))  # COMPRA / VENDA
     data_operacao: Mapped[date] = mapped_column(Date, index=True)

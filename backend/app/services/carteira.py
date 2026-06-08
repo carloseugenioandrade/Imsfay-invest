@@ -24,15 +24,15 @@ def _ultima_cotacao(db: Session, ativo_id: int) -> float | None:
     return float(cot.preco_fechamento) if cot else None
 
 
-def build_posicoes(db: Session) -> list[dict]:
-    """Retorna a posição consolidada de cada ativo com transações."""
+def build_posicoes(db: Session, usuario_id: int) -> list[dict]:
+    """Retorna a posição consolidada de cada ativo com transações do usuário."""
     posicoes: list[dict] = []
     ativos = db.scalars(select(Ativo)).all()
 
     for ativo in ativos:
         transacoes = db.scalars(
             select(Transacao)
-            .where(Transacao.ativo_id == ativo.id)
+            .where(Transacao.ativo_id == ativo.id, Transacao.usuario_id == usuario_id)
             .order_by(Transacao.data_operacao)
         ).all()
         if not transacoes:
@@ -80,8 +80,8 @@ def build_posicoes(db: Session) -> list[dict]:
     return posicoes
 
 
-def resumo_carteira(db: Session) -> dict:
-    posicoes = build_posicoes(db)
+def resumo_carteira(db: Session, usuario_id: int) -> dict:
+    posicoes = build_posicoes(db, usuario_id)
     valor_atual = sum(p["valor_atual"] for p in posicoes)
     valor_investido = sum(p["valor_investido"] for p in posicoes)
     lucro = valor_atual - valor_investido
@@ -134,7 +134,7 @@ def _fator_ate(mapa: dict[date, float], dia: date) -> float:
     return melhor
 
 
-def evolucao_patrimonial(db: Session, benchmark_cdi: bool = False) -> list[dict]:
+def evolucao_patrimonial(db: Session, usuario_id: int, benchmark_cdi: bool = False) -> list[dict]:
     """Série temporal de patrimônio vs total investido.
 
     Eixo = datas distintas de cotação. Para cada data: soma, por ativo, da
@@ -166,7 +166,7 @@ def evolucao_patrimonial(db: Session, benchmark_cdi: bool = False) -> list[dict]
         ]
         transacoes_por_ativo[ativo.id] = db.scalars(
             select(Transacao)
-            .where(Transacao.ativo_id == ativo.id)
+            .where(Transacao.ativo_id == ativo.id, Transacao.usuario_id == usuario_id)
             .order_by(Transacao.data_operacao)
         ).all()
 

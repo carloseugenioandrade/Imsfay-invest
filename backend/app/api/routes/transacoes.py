@@ -3,26 +3,39 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.core.security import get_current_user
 from app.integrations.importador_b3 import parse_extrato_pdf, parse_extrato_xlsx
-from app.models import Ativo, Transacao
+from app.models import Ativo, Transacao, Usuario
 from app.schemas import TransacaoCreate, TransacaoOut
 
 router = APIRouter(prefix="/transacoes", tags=["Transações"])
 
 
 @router.get("", response_model=list[TransacaoOut])
-def listar_transacoes(ativo_id: int | None = None, db: Session = Depends(get_db)):
-    stmt = select(Transacao).order_by(Transacao.data_operacao.desc())
+def listar_transacoes(
+    ativo_id: int | None = None,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(get_current_user),
+):
+    stmt = (
+        select(Transacao)
+        .where(Transacao.usuario_id == usuario.id)
+        .order_by(Transacao.data_operacao.desc())
+    )
     if ativo_id is not None:
         stmt = stmt.where(Transacao.ativo_id == ativo_id)
     return db.scalars(stmt).all()
 
 
 @router.post("", response_model=TransacaoOut, status_code=201)
-def criar_transacao(payload: TransacaoCreate, db: Session = Depends(get_db)):
+def criar_transacao(
+    payload: TransacaoCreate,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(get_current_user),
+):
     if db.get(Ativo, payload.ativo_id) is None:
         raise HTTPException(status_code=404, detail="Ativo não encontrado")
-    transacao = Transacao(**payload.model_dump())
+    transacao = Transacao(**payload.model_dump(), usuario_id=usuario.id)
     db.add(transacao)
     db.commit()
     db.refresh(transacao)
@@ -30,16 +43,24 @@ def criar_transacao(payload: TransacaoCreate, db: Session = Depends(get_db)):
 
 
 @router.delete("/{transacao_id}", status_code=204)
-def remover_transacao(transacao_id: int, db: Session = Depends(get_db)):
+def remover_transacao(
+    transacao_id: int,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(get_current_user),
+):
     transacao = db.get(Transacao, transacao_id)
-    if transacao is None:
+    if transacao is None or transacao.usuario_id != usuario.id:
         raise HTTPException(status_code=404, detail="Transação não encontrada")
     db.delete(transacao)
     db.commit()
 
 
 @router.post("/importar")
-async def importar_extrato(file: UploadFile, db: Session = Depends(get_db)):
+async def importar_extrato(
+    file: UploadFile,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(get_current_user),
+):
     """Importa um extrato XLSX ou PDF da B3/corretora, criando ativos ausentes
     e deduplicando transações idênticas."""
     nome = (file.filename or "").lower()
@@ -83,6 +104,7 @@ async def importar_extrato(file: UploadFile, db: Session = Depends(get_db)):
 
         existente = db.scalar(
             select(Transacao).where(
+                Transacao.usuario_id == usuario.id,
                 Transacao.ativo_id == ativo.id,
                 Transacao.tipo_operacao == linha["tipo_operacao"],
                 Transacao.data_operacao == linha["data_operacao"],
@@ -95,6 +117,7 @@ async def importar_extrato(file: UploadFile, db: Session = Depends(get_db)):
             continue
 
         db.add(Transacao(
+            usuario_id=usuario.id,
             ativo_id=ativo.id,
             tipo_operacao=linha["tipo_operacao"],
             data_operacao=linha["data_operacao"],

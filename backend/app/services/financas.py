@@ -7,10 +7,10 @@ from sqlalchemy.orm import Session
 from app.models import GastoFinanceiro, PerfilFinanceiro
 
 
-def get_or_create_perfil(db: Session) -> PerfilFinanceiro:
-    perfil = db.scalar(select(PerfilFinanceiro).order_by(PerfilFinanceiro.id).limit(1))
+def get_or_create_perfil(db: Session, usuario_id: int) -> PerfilFinanceiro:
+    perfil = db.scalar(select(PerfilFinanceiro).where(PerfilFinanceiro.usuario_id == usuario_id))
     if perfil is None:
-        perfil = PerfilFinanceiro()
+        perfil = PerfilFinanceiro(usuario_id=usuario_id)
         db.add(perfil)
         db.commit()
         db.refresh(perfil)
@@ -27,14 +27,18 @@ def _add_meses(d: date, n: int) -> date:
     return date(ano, mes % 12 + 1, 1)
 
 
-def resumo_financeiro(db: Session, ref: date | None = None) -> dict:
+def resumo_financeiro(db: Session, usuario_id: int, ref: date | None = None) -> dict:
     """Resumo do mês de referência + tendência dos últimos 6 meses."""
     hoje = ref or date.today()
     ini = _inicio_mes(hoje)
     fim = _add_meses(ini, 1)
 
     gastos = db.scalars(
-        select(GastoFinanceiro).where(GastoFinanceiro.data >= ini, GastoFinanceiro.data < fim)
+        select(GastoFinanceiro).where(
+            GastoFinanceiro.usuario_id == usuario_id,
+            GastoFinanceiro.data >= ini,
+            GastoFinanceiro.data < fim,
+        )
     ).all()
 
     receitas = sum(float(g.valor) for g in gastos if g.tipo == "receita")
@@ -58,7 +62,11 @@ def resumo_financeiro(db: Session, ref: date | None = None) -> dict:
         mi = _add_meses(ini, -i)
         mf = _add_meses(mi, 1)
         ms = db.scalars(
-            select(GastoFinanceiro).where(GastoFinanceiro.data >= mi, GastoFinanceiro.data < mf)
+            select(GastoFinanceiro).where(
+                GastoFinanceiro.usuario_id == usuario_id,
+                GastoFinanceiro.data >= mi,
+                GastoFinanceiro.data < mf,
+            )
         ).all()
         r = sum(float(g.valor) for g in ms if g.tipo == "receita")
         d = sum(float(g.valor) for g in ms if g.tipo == "despesa")
@@ -82,7 +90,7 @@ def resumo_financeiro(db: Session, ref: date | None = None) -> dict:
     }
 
 
-def gasto_medio_mensal(db: Session, meses: int = 3) -> float:
+def gasto_medio_mensal(db: Session, usuario_id: int, meses: int = 3) -> float:
     """Média de despesas dos últimos `meses` (ignora meses sem lançamentos)."""
     hoje = date.today()
     ini = _inicio_mes(hoje)
@@ -92,6 +100,7 @@ def gasto_medio_mensal(db: Session, meses: int = 3) -> float:
         mf = _add_meses(mi, 1)
         ms = db.scalars(
             select(GastoFinanceiro).where(
+                GastoFinanceiro.usuario_id == usuario_id,
                 GastoFinanceiro.data >= mi,
                 GastoFinanceiro.data < mf,
                 GastoFinanceiro.tipo == "despesa",

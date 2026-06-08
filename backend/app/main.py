@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routes import api_router
 from app.core.config import settings
-from app.core.database import Base, engine
+from app.core.database import Base, engine, garantir_colunas_usuario
 
 logger = logging.getLogger("uvicorn.error")
 
@@ -18,6 +18,7 @@ async def lifespan(app: FastAPI):
 
     try:
         Base.metadata.create_all(bind=engine)
+        garantir_colunas_usuario()
         logger.info("Tabelas verificadas/criadas com sucesso.")
     except Exception as exc:  # banco indisponível não deve derrubar a API
         logger.warning("Banco indisponível no startup (%s). Tabelas não criadas.", exc)

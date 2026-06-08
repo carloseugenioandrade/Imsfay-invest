@@ -32,3 +32,23 @@ def get_db() -> Generator[Session, None, None]:
         yield db
     finally:
         db.close()
+
+
+def garantir_colunas_usuario() -> None:
+    """Adiciona a coluna `usuario_id` às tabelas por-usuário se ela ainda não existir.
+
+    `Base.metadata.create_all` cria tabelas ausentes, mas NÃO altera tabelas
+    existentes. Em produção (Postgres) as tabelas já existem sem `usuario_id`,
+    então fazemos um ALTER idempotente aqui. Funciona em Postgres e SQLite.
+    """
+    from sqlalchemy import inspect, text
+
+    tabelas = ["transacoes", "proventos_recebidos", "gastos_financeiros", "perfil_financeiro"]
+    insp = inspect(engine)
+    with engine.begin() as conn:
+        for tabela in tabelas:
+            if not insp.has_table(tabela):
+                continue
+            colunas = {c["name"] for c in insp.get_columns(tabela)}
+            if "usuario_id" not in colunas:
+                conn.execute(text(f"ALTER TABLE {tabela} ADD COLUMN usuario_id INTEGER"))

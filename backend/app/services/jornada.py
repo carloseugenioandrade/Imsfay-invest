@@ -116,7 +116,7 @@ def construir_trilha(db: Session, perfil: PerfilFinanceiro) -> dict:
     concluidos = _carregar_concluidos(perfil)
 
     renda = float(perfil.renda_mensal or 0)
-    gasto_base = float(perfil.gasto_mensal_estimado or 0) or gasto_medio_mensal(db)
+    gasto_base = float(perfil.gasto_mensal_estimado or 0) or gasto_medio_mensal(db, perfil.usuario_id)
     dividas = float(perfil.total_dividas or 0)
     reserva_atual = float(perfil.reserva_atual or 0)
     meses_meta = int(perfil.meses_reserva_meta or 6)

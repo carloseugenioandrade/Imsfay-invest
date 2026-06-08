@@ -13,7 +13,7 @@ from app.services.dividendos_ia import prever_meses_provento
 MESES_LABEL = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"]
 
 
-def _custo_total_investido(db: Session) -> float:
+def _custo_total_investido(db: Session, usuario_id: int) -> float:
     """Custo das compras líquidas vigentes (base do Yield on Cost)."""
     total = 0.0
     for ativo in db.scalars(select(Ativo)).all():
@@ -21,7 +21,7 @@ def _custo_total_investido(db: Session) -> float:
         custo = 0.0
         transacoes = db.scalars(
             select(Transacao)
-            .where(Transacao.ativo_id == ativo.id)
+            .where(Transacao.ativo_id == ativo.id, Transacao.usuario_id == usuario_id)
             .order_by(Transacao.data_operacao)
         ).all()
         for t in transacoes:
@@ -40,8 +40,8 @@ def _custo_total_investido(db: Session) -> float:
     return total
 
 
-def resumo_proventos(db: Session) -> dict:
-    proventos = db.scalars(select(ProventoRecebido)).all()
+def resumo_proventos(db: Session, usuario_id: int) -> dict:
+    proventos = db.scalars(select(ProventoRecebido).where(ProventoRecebido.usuario_id == usuario_id)).all()
     total = sum(float(p.valor_liquido) for p in proventos)
 
     por_mes: dict[str, float] = defaultdict(float)
@@ -51,7 +51,7 @@ def resumo_proventos(db: Session) -> dict:
         por_mes[chave] += float(p.valor_liquido)
         por_ano[p.data_pagamento.year] += float(p.valor_liquido)
 
-    custo = _custo_total_investido(db)
+    custo = _custo_total_investido(db, usuario_id)
     yield_on_cost = (total / custo * 100) if custo else 0.0
 
     evolucao = [
@@ -67,7 +67,7 @@ def resumo_proventos(db: Session) -> dict:
     }
 
 
-def agenda_preditiva(db: Session) -> dict:
+def agenda_preditiva(db: Session, usuario_id: int) -> dict:
     """Probabilidade de provento por mês, por ativo, e agregada na carteira."""
     itens: list[dict] = []
     agregada = {m: 0.0 for m in range(1, 13)}
@@ -75,7 +75,9 @@ def agenda_preditiva(db: Session) -> dict:
 
     for ativo in db.scalars(select(Ativo).order_by(Ativo.ticker)).all():
         datas = list(db.scalars(
-            select(ProventoRecebido.data_pagamento).where(ProventoRecebido.ativo_id == ativo.id)
+            select(ProventoRecebido.data_pagamento).where(
+                ProventoRecebido.ativo_id == ativo.id, ProventoRecebido.usuario_id == usuario_id
+            )
         ).all())
         if not datas:
             continue

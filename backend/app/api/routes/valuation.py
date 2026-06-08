@@ -3,7 +3,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.models import Ativo, CotacaoHistorica, IndicadorFundamentalista
+from app.core.security import get_current_user
+from app.models import Ativo, CotacaoHistorica, IndicadorFundamentalista, Transacao, Usuario
 from app.services.valuation import preco_justo_graham, preco_teto_bazin, upside
 
 BAZIN_YIELD_MINIMO = 0.06
@@ -30,10 +31,15 @@ async def bazin(dividendos_medios_5_anos: float, preco_atual: float):
 
 
 @router.get("/ranking")
-def ranking(db: Session = Depends(get_db)):
-    """Ranking de Upside (Graham) usando indicadores + última cotação do banco."""
+def ranking(db: Session = Depends(get_db), usuario: Usuario = Depends(get_current_user)):
+    """Ranking de Upside (Graham) dos ativos do usuário + última cotação do banco."""
     itens = []
-    ativos = db.scalars(select(Ativo)).all()
+    ativo_ids = set(
+        db.scalars(
+            select(Transacao.ativo_id).where(Transacao.usuario_id == usuario.id).distinct()
+        ).all()
+    )
+    ativos = [a for a in db.scalars(select(Ativo)).all() if a.id in ativo_ids]
     for ativo in ativos:
         ind = db.scalar(
             select(IndicadorFundamentalista)

@@ -17,6 +17,13 @@ class Settings(BaseSettings):
 
     brapi_token: str = ""
 
+    # === Autenticação ===
+    # Em produção, defina SECRET_KEY (chave longa e aleatória) via variável de ambiente.
+    secret_key: str = "dev-secret-change-me-please-use-a-long-random-value"
+    access_token_expire_minutes: int = 60 * 24 * 7  # 7 dias
+    # Client ID do Google OAuth (Google Identity Services). Necessário para login com Google.
+    google_client_id: str = ""
+
     # Liga os cronjobs (APScheduler). Mantenha False em dev com --reload.
     enable_scheduler: bool = False
 

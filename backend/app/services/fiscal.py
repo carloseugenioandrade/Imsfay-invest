@@ -27,7 +27,7 @@ def _status(percentual: float) -> str:
     return "verde"
 
 
-def isentometro(db: Session, ano: int, mes: int) -> dict:
+def isentometro(db: Session, ano: int, mes: int, usuario_id: int) -> dict:
     """Total de vendas de ações no mês, lucro realizado e imposto estimado.
 
     A isenção de R$ 20.000 vale apenas para AÇÕES (tipo 'Acao'). Lucro é apurado
@@ -41,7 +41,7 @@ def isentometro(db: Session, ano: int, mes: int) -> dict:
     for ativo in ativos:
         transacoes = db.scalars(
             select(Transacao)
-            .where(Transacao.ativo_id == ativo.id)
+            .where(Transacao.ativo_id == ativo.id, Transacao.usuario_id == usuario_id)
             .order_by(Transacao.data_operacao)
         ).all()
         quantidade = 0.0
@@ -80,7 +80,7 @@ def isentometro(db: Session, ano: int, mes: int) -> dict:
     }
 
 
-def relatorio_ir(db: Session, ano: int) -> dict:
+def relatorio_ir(db: Session, ano: int, usuario_id: int) -> dict:
     """Posição em 31/12/ano por ativo (Bens e Direitos)."""
     corte = date(ano, 12, 31)
     itens: list[dict] = []
@@ -89,7 +89,11 @@ def relatorio_ir(db: Session, ano: int) -> dict:
     for ativo in db.scalars(select(Ativo).order_by(Ativo.ticker)).all():
         transacoes = db.scalars(
             select(Transacao)
-            .where(Transacao.ativo_id == ativo.id, Transacao.data_operacao <= corte)
+            .where(
+                Transacao.ativo_id == ativo.id,
+                Transacao.usuario_id == usuario_id,
+                Transacao.data_operacao <= corte,
+            )
             .order_by(Transacao.data_operacao)
         ).all()
         quantidade = 0.0

@@ -1,6 +1,6 @@
 from datetime import date, datetime
 
-from sqlalchemy import Boolean, Date, DateTime, Integer, Numeric, String, func
+from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Integer, Numeric, String, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
@@ -12,6 +12,9 @@ class GastoFinanceiro(Base):
     __tablename__ = "gastos_financeiros"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    usuario_id: Mapped[int | None] = mapped_column(
+        ForeignKey("usuarios.id", ondelete="CASCADE"), index=True, nullable=True
+    )
     tipo: Mapped[str] = mapped_column(String(10), index=True)  # receita / despesa
     categoria: Mapped[str] = mapped_column(String(40), index=True)
     descricao: Mapped[str | None] = mapped_column(String(160), nullable=True)
@@ -24,6 +27,9 @@ class GastoFinanceiro(Base):
 class PerfilFinanceiro(Base):
     """Perfil único do usuário (single-user): renda, perfil investidor e progresso da jornada."""
 
+    usuario_id: Mapped[int | None] = mapped_column(
+        ForeignKey("usuarios.id", ondelete="CASCADE"), index=True, unique=True, nullable=True
+    )
     __tablename__ = "perfil_financeiro"
 
     id: Mapped[int] = mapped_column(primary_key=True)
