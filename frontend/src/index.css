@@ -37,6 +37,9 @@ body {
     background-size: 40px 40px;
     @apply bg-grid-faint;
   }
+  .btn-primary {
+    @apply flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-brand to-accent-cyan px-4 py-2.5 text-sm font-semibold text-ink-950 transition-all hover:opacity-90 disabled:opacity-50;
+  }
 }
 
 /* Scrollbar futurista */

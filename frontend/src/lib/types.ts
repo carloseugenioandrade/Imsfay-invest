@@ -91,3 +91,63 @@ export interface AgendaPreditiva {
   carteira: MesProbabilidade[];
   por_ativo: { ticker: string; meses: MesProbabilidade[] }[];
 }
+
+// ===== Organizador Financeiro =====
+export interface Lancamento {
+  id: number;
+  tipo: "receita" | "despesa";
+  categoria: string;
+  descricao: string | null;
+  valor: number;
+  data: string;
+  recorrente: boolean;
+}
+
+export interface ResumoFinanceiro {
+  mes_referencia: string;
+  receitas: number;
+  despesas: number;
+  saldo: number;
+  taxa_poupanca: number;
+  por_categoria: { categoria: string; valor: number }[];
+  serie_mensal: { mes: string; receitas: number; despesas: number; saldo: number }[];
+}
+
+export interface PerfilFinanceiro {
+  id: number;
+  renda_mensal: number;
+  gasto_mensal_estimado: number;
+  total_dividas: number;
+  reserva_atual: number;
+  meses_reserva_meta: number;
+  perfil_investidor: string | null;
+  score_perfil: number;
+  onboarding_completo: boolean;
+}
+
+// ===== Jornada =====
+export interface Capitulo {
+  id: string;
+  titulo: string;
+  subtitulo: string;
+  icone: string;
+  tipo: "quiz" | "form" | "leitura";
+  done: boolean;
+  status: "done" | "active" | "locked";
+  resumo: string;
+  passos?: string[];
+  metrica?: Record<string, number | string | Record<string, number>>;
+}
+
+export interface Trilha {
+  perfil_investidor: string | null;
+  progresso_pct: number;
+  capitulos_total: number;
+  capitulos_concluidos: number;
+  capitulos: Capitulo[];
+}
+
+export interface PerguntaQuiz {
+  pergunta: string;
+  opcoes: string[];
+}

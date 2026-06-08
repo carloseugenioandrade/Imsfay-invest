@@ -1,13 +1,28 @@
 import { NavLink, Outlet } from "react-router-dom";
-import { LayoutDashboard, Wallet, Calculator, Coins, Receipt, TrendingUp, Activity, LineChart } from "lucide-react";
+import {
+  LayoutDashboard,
+  Wallet,
+  Calculator,
+  Coins,
+  Receipt,
+  TrendingUp,
+  Activity,
+  LineChart,
+  PiggyBank,
+  GraduationCap,
+  BookOpen,
+} from "lucide-react";
 
 const nav = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard, end: true },
+  { to: "/jornada", label: "Liberdade Financeira", icon: GraduationCap },
+  { to: "/organizador", label: "Organizador", icon: PiggyBank },
   { to: "/carteira", label: "Carteira", icon: Wallet },
   { to: "/valuation", label: "Valuation", icon: Calculator },
   { to: "/dividendos", label: "Dividendos", icon: Coins },
   { to: "/fiscal", label: "Fiscal", icon: Receipt },
   { to: "/juros-compostos", label: "Juros Compostos", icon: LineChart },
+  { to: "/tutorial", label: "Tutorial", icon: BookOpen },
 ];
 
 export default function Layout() {

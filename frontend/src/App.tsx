@@ -6,17 +6,23 @@ import Valuation from "./pages/Valuation";
 import Dividendos from "./pages/Dividendos";
 import Fiscal from "./pages/Fiscal";
 import JurosCompostos from "./pages/JurosCompostos";
+import Organizador from "./pages/Organizador";
+import Jornada from "./pages/Jornada";
+import Tutorial from "./pages/Tutorial";
 
 export default function App() {
   return (
     <Routes>
       <Route element={<Layout />}>
         <Route index element={<Dashboard />} />
+        <Route path="organizador" element={<Organizador />} />
+        <Route path="jornada" element={<Jornada />} />
         <Route path="carteira" element={<Carteira />} />
         <Route path="valuation" element={<Valuation />} />
         <Route path="dividendos" element={<Dividendos />} />
         <Route path="fiscal" element={<Fiscal />} />
         <Route path="juros-compostos" element={<JurosCompostos />} />
+        <Route path="tutorial" element={<Tutorial />} />
       </Route>
     </Routes>
   );
