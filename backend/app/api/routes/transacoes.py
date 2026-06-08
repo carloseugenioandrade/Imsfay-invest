@@ -75,7 +75,7 @@ async def importar_extrato(file: UploadFile, db: Session = Depends(get_db)):
         if ativo is None:
             ativo = db.scalar(select(Ativo).where(Ativo.ticker == ticker))
             if ativo is None:
-                ativo = Ativo(ticker=ticker, nome=ticker, tipo="Acao")
+                ativo = Ativo(ticker=ticker, nome=ticker, tipo=linha.get("tipo_ativo") or "Acao")
                 db.add(ativo)
                 db.flush()
                 ativos_criados += 1

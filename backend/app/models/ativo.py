@@ -10,7 +10,7 @@ class Ativo(Base):
     __tablename__ = "ativos"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    ticker: Mapped[str] = mapped_column(String(20), unique=True, index=True)
+    ticker: Mapped[str] = mapped_column(String(60), unique=True, index=True)
     nome: Mapped[str] = mapped_column(String(120))
     tipo: Mapped[str] = mapped_column(String(20))  # Acao, FII, ETF, Stock, REIT, Cripto
     setor: Mapped[str | None] = mapped_column(String(80), nullable=True)
