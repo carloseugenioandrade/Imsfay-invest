@@ -3,13 +3,14 @@ import {
   PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend,
   AreaChart, Area, XAxis, YAxis, CartesianGrid,
 } from "recharts";
-import { Wallet, Banknote, TrendingUp, PieChart as PieIcon, RefreshCw } from "lucide-react";
+import { Link } from "react-router-dom";
+import { Wallet, Banknote, TrendingUp, PieChart as PieIcon, RefreshCw, GraduationCap, PiggyBank, ArrowRight } from "lucide-react";
 import PageHeader from "../components/PageHeader";
 import StatCard from "../components/StatCard";
 import GlassCard from "../components/GlassCard";
 import { api } from "../lib/api";
 import { brl, pct } from "../lib/format";
-import type { ResumoCarteira, EvolucaoPonto } from "../lib/types";
+import type { ResumoCarteira, EvolucaoPonto, ResumoFinanceiro, Trilha } from "../lib/types";
 
 const CORES = ["#2dd4bf", "#22d3ee", "#8b5cf6", "#f59e0b", "#f43f5e", "#34d399"];
 
@@ -19,6 +20,8 @@ const fmtMes = (iso: string) =>
 export default function Dashboard() {
   const [resumo, setResumo] = useState<ResumoCarteira | null>(null);
   const [evolucao, setEvolucao] = useState<EvolucaoPonto[]>([]);
+  const [financas, setFinancas] = useState<ResumoFinanceiro | null>(null);
+  const [trilha, setTrilha] = useState<Trilha | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [sincronizando, setSincronizando] = useState(false);
 
@@ -31,6 +34,8 @@ export default function Dashboard() {
       .get<{ items: EvolucaoPonto[] }>("/carteira/evolucao?benchmark_cdi=true")
       .then((r) => setEvolucao(r.data.items))
       .catch(() => undefined);
+    api.get<ResumoFinanceiro>("/financas/resumo").then((r) => setFinancas(r.data)).catch(() => undefined);
+    api.get<Trilha>("/jornada").then((r) => setTrilha(r.data)).catch(() => undefined);
   }, []);
 
   useEffect(() => {
@@ -91,6 +96,11 @@ export default function Dashboard() {
               icon={PieIcon}
               delay={180}
             />
+          </div>
+
+          <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <JornadaCard trilha={trilha} />
+            <SaudeFinanceiraCard financas={financas} />
           </div>
 
           <GlassCard
@@ -185,6 +195,76 @@ function EvolucaoChart({ data }: { data: EvolucaoPonto[] }) {
         )}
       </AreaChart>
     </ResponsiveContainer>
+  );
+}
+
+function JornadaCard({ trilha }: { trilha: Trilha | null }) {
+  const proximo = trilha?.capitulos.find((c) => c.status === "active");
+  return (
+    <Link to="/jornada" className="group block">
+      <GlassCard className="h-full transition-all group-hover:border-brand/30" delay={230}>
+        <div className="flex items-start justify-between">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand/15 text-brand">
+              <GraduationCap size={20} />
+            </div>
+            <div>
+              <h2 className="font-display text-lg font-semibold text-white">Sua jornada</h2>
+              <p className="text-xs text-slate-400">
+                {trilha?.perfil_investidor ? `Perfil ${trilha.perfil_investidor}` : "Descubra seu perfil"}
+              </p>
+            </div>
+          </div>
+          <ArrowRight size={18} className="text-slate-500 transition-transform group-hover:translate-x-1 group-hover:text-brand" />
+        </div>
+        <div className="mt-4 h-2.5 w-full overflow-hidden rounded-full bg-white/10">
+          <div className="h-full rounded-full bg-gradient-to-r from-brand to-accent-cyan transition-all" style={{ width: `${trilha?.progresso_pct ?? 0}%` }} />
+        </div>
+        <p className="mt-2 text-sm text-slate-300">
+          {trilha ? `${trilha.capitulos_concluidos} de ${trilha.capitulos_total} etapas concluídas` : "Carregando..."}
+          {proximo && <span className="text-slate-500"> · próximo: {proximo.titulo}</span>}
+        </p>
+      </GlassCard>
+    </Link>
+  );
+}
+
+function SaudeFinanceiraCard({ financas }: { financas: ResumoFinanceiro | null }) {
+  const saldo = financas?.saldo ?? 0;
+  return (
+    <Link to="/organizador" className="group block">
+      <GlassCard className="h-full transition-all group-hover:border-brand/30" delay={290}>
+        <div className="flex items-start justify-between">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent-cyan/15 text-accent-cyan">
+              <PiggyBank size={20} />
+            </div>
+            <div>
+              <h2 className="font-display text-lg font-semibold text-white">Saúde financeira</h2>
+              <p className="text-xs text-slate-400">Mês {financas?.mes_referencia ?? "—"}</p>
+            </div>
+          </div>
+          <ArrowRight size={18} className="text-slate-500 transition-transform group-hover:translate-x-1 group-hover:text-brand" />
+        </div>
+        <div className="mt-4 grid grid-cols-3 gap-3 text-center">
+          <div>
+            <p className="text-[11px] uppercase tracking-wider text-slate-500">Receitas</p>
+            <p className="font-mono text-sm font-semibold text-emerald-400">{brl(financas?.receitas ?? 0)}</p>
+          </div>
+          <div>
+            <p className="text-[11px] uppercase tracking-wider text-slate-500">Despesas</p>
+            <p className="font-mono text-sm font-semibold text-rose-400">{brl(financas?.despesas ?? 0)}</p>
+          </div>
+          <div>
+            <p className="text-[11px] uppercase tracking-wider text-slate-500">Saldo</p>
+            <p className={`font-mono text-sm font-semibold ${saldo >= 0 ? "text-brand" : "text-rose-400"}`}>{brl(saldo)}</p>
+          </div>
+        </div>
+        <p className="mt-3 text-sm text-slate-400">
+          Taxa de poupança: <span className="font-semibold text-white">{(financas?.taxa_poupanca ?? 0).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%</span>
+        </p>
+      </GlassCard>
+    </Link>
   );
 }
 
